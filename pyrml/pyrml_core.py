@@ -2137,7 +2137,7 @@ class RMLResource:
         self.__triples_maps = dict()
         if triples_maps:
             for triples_map in triples_maps:
-                self.__triples_maps[triples_map.n3()] = triples_maps
+                self.__triples_maps[triples_map.n3()] = triples_map
         
     
     @property
@@ -2145,7 +2145,7 @@ class RMLResource:
         return self.__triples_maps.values()
     
     def triple_map(self, _id: str):
-        return self.__triples_maps[_id] if _id in self.__triple_maps else None
+        return self.__triples_maps[_id] if _id in self.__triples_maps else None
     
     def to_graph(self):
         g: Graph = Graph()
