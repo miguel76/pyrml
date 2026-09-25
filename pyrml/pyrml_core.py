@@ -261,12 +261,19 @@ class TermObjectMap(ObjectMap):
                         
                     elif self.datatype is not None:
                         
+                        def typed_literal(lexical):
+                            lexical = str(lexical)
+                            value = _castLexicalToPython(lexical, self.datatype)
+                            if value is None:
+                                # Datatype unknown to rdflib (e.g. geo:wktLiteral): keep the lexical form
+                                return Literal(lexical, datatype=self.datatype)
+                            return Literal(_castPythonToLiteral(value, self.datatype)[0], datatype=self.datatype)
+                        
                         def l(term):
                             if isinstance(term, list) or isinstance(term, np.ndarray):
-                                return np.array([Literal(_castPythonToLiteral(_castLexicalToPython(str(lit), self.datatype), self.datatype)[0], datatype=self.datatype) if lit is not None and not pd.isna(lit) else lit for lit in term], dtype=Literal)
+                                return np.array([typed_literal(lit) if lit is not None and not pd.isna(lit) else lit for lit in term], dtype=Literal)
                             else:
-                                _term = Literal(_castPythonToLiteral(_castLexicalToPython(str(term), self.datatype), self.datatype)[0], datatype=self.datatype) if term is not None and not pd.isna(term) else None
-                                return _term
+                                return typed_literal(term) if term is not None and not pd.isna(term) else None
                         
                         terms = np.array([l(term) for term in terms], dtype=Literal)
                     else:
@@ -1398,7 +1405,7 @@ class FunctionMap(AbstractMap):
     @staticmethod
     def from_rdf(g: Graph, parent: IdentifiedNode = None) -> List['FunctionMap']:
         
-        poms = [pom for pom_uri in g.objects(parent, rml_vocab.RR_NS.predicateObjectMap, True) for pom in PredicateObjectMap.from_rdf(g, pom_uri, 'pom')]
+        poms = PredicateObjectMap.from_rdf(g, parent)
         
         return [FunctionMap(parent, poms)]
         
@@ -1852,37 +1859,27 @@ class CSVSource(Source):
     def encoding(self):
         return self.__encoding
     
+    @property
+    def url(self):
+        return self.__url
+    
     @staticmethod
     def from_rdf(g: Graph, parent: IdentifiedNode) -> Source:
         
-        csvw = 'http://www.w3.org/ns/csvw#'
+        csvw = rml_vocab.CSVW_NS
         
-        dialect = URIRef(csvw+'dialect')
-        
-        urls = g.objects(parent, URIRef(csvw+'url'), True)
-        for url in urls:
-            url = url.value
-            
-            delimiters = g.objects(parent, (dialect/URIRef(csvw+'delimiter')), True)
-            if delimiters:
-                delimiter = next(delimiters, None)
-                if delimiter: 
-                    delimiter = delimiter.value
-            else:
-                delimiter = ','
-                
-            encodings = g.objects(parent, (dialect/URIRef(csvw+'encoding')), True)
-            if encodings:
-                encoding = next(encodings, None)
-                if encoding:
-                    encoding = encoding.value
-            else:
-                encoding = 'UTF-8'
-                
-            return CSVSource(parent, url, delimiter=delimiter, encoding=encoding)
-                
-        else:
+        url = g.value(parent, csvw.url)
+        if url is None:
             return None
+        
+        dialect = g.value(parent, csvw.dialect)
+        delimiter = g.value(dialect, csvw.delimiter) if dialect is not None else None
+        encoding = g.value(dialect, csvw.encoding) if dialect is not None else None
+        
+        return CSVSource(parent,
+                         url=url.value,
+                         delimiter=delimiter.value if delimiter is not None else ',',
+                         encoding=encoding.value if encoding is not None else 'UTF-8')
         
     def to_rdf(self):
         g: Graph = Graph()
