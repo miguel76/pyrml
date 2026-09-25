@@ -2,6 +2,7 @@
 from abc import abstractmethod
 from io import BytesIO
 import json
+import logging
 from pyrml import rml_vocab
 import time
 from typing import Dict, Union, Set, List, Type, Generator
@@ -20,6 +21,8 @@ import pandas as pd
 import pyrml.rml_vocab as rml_vocab
 import xml.etree.ElementTree as ET
 import sqlalchemy as sa
+
+logger = logging.getLogger(__name__)
 
 
 __author__ = "Andrea Giovanni Nuzzolese"
@@ -2121,8 +2124,8 @@ class RMLFunction():
             out = self.__function(**input_values)
             return out
         except Exception as e:
-            #pass
-            print(e)
+            # A failing function yields no term, as in previous versions
+            logger.debug('Function %s failed on %s: %r', self.__fun_id, input_values, e)
                 
             #g += tm.apply()
     
