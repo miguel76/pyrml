@@ -20,7 +20,6 @@ import pandas as pd
 import pyrml.rml_vocab as rml_vocab
 import xml.etree.ElementTree as ET
 import sqlalchemy as sa
-from owlready2 import prop
 
 
 __author__ = "Andrea Giovanni Nuzzolese"
